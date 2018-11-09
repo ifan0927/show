@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
     }
 
     //confirm user input and check input is ok
-    int muti = atoi(argv[1]);
+    float muti = atof(argv[1]);
     if (muti < 0 || muti > 100)
     {
         fprintf(stderr,"Usage: ./resize f infile outfile\n");
@@ -65,10 +65,20 @@ int main(int argc, char *argv[])
 
     bf_new = bf;
     bi_new = bi;
+    int factor = 1 / muti;
+
 
     //resize
-    bi_new.biWidth = bi.biWidth * muti;
-    bi_new.biHeight = bi.biHeight * muti;
+    if (muti >= 1)
+    {
+        bi_new.biWidth = bi.biWidth * muti;
+        bi_new.biHeight = bi.biHeight * muti;
+    }
+    if (muti < 1)
+    {
+        bi_new.biWidth = bi.biWidth / factor;
+        bi_new.biHeight = bi.biHeight / factor;
+    }
 
     // determine padding for scanlines
     int padding = (4 - (bi.biWidth * sizeof(RGBTRIPLE)) % 4) % 4;
@@ -130,34 +140,34 @@ int main(int argc, char *argv[])
         }
     }
 
-    // iterate over infile's scanlines while muti < 1
-    int factor = 1 / muti;
+    // iterate over infile's scanlines while muti < 1 (small)
     int ptr_counter = 0 ;
     if (muti < 1)
     {
-        for (int i = 0, biHeight = abs(bi.biHeight); i < biHeight/2 ; i++)
+        for (int i = 0, biHeight = abs(bi_new.biHeight) ; i < biHeight ; i++)
         {
-            //iterate over pixels in scanlines
-            for (int j = 0 ; j < bi.biWidth ; j ++)
+            for(int j = 0 ; j < bi_new.biWidth ; j++)
             {
-                //temporary storage
-                RGBTRIPLE triple;
+                //set ptrcounter to 0
                 ptr_counter = 0 ;
+
+                //temporary memory
+                RGBTRIPLE triple;
 
                 //read RGB triple from infile
                 fread(&triple , sizeof(RGBTRIPLE) , 1 , inptr);
 
-                //write RGB triple to outptr
-                fwrite(&triple , sizeof(RGBTRIPLE) , 1 ,outptr);
+                //write RGB triple to outfile
+                fwrite(&triple , sizeof(RGBTRIPLE) , 1 , outptr);
 
-                //move  pointer
-                while (ptr_counter < factor)
+                //move pointer
+                while (ptr_counter < (factor - 1))
                 {
                     fseek(inptr , sizeof(RGBTRIPLE) , SEEK_CUR);
-                    ptr_counter ++;
+                    ptr_counter ++ ;
                 }
-
             }
+
             //add padding
             for (int k = 0 ; k < padding_new ; k++)
             {
@@ -165,10 +175,14 @@ int main(int argc, char *argv[])
             }
 
             fseek(inptr , padding , SEEK_CUR);
-            fseek(inptr , sizeof(bi.biHeight) + padding , SEEK_CUR);
+            fseek(inptr , (sizeof(RGBTRIPLE) * sizeof(bi.biWidth)) + padding , SEEK_CUR);
 
         }
+
+
     }
+
+
 
     // close infile
     fclose(inptr);
@@ -179,3 +193,4 @@ int main(int argc, char *argv[])
     // success
     return 0;
 }
+
